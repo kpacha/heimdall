@@ -10,7 +10,7 @@ import io.github.kpacha.heimdall.Settings
 
 trait ProxyActor extends Actor with ActorLogging {
   import context.system
-  val headersToAvoid: List[String] = List("Content-Length", "Content-Type", "Date", "Server")
+  val headersToAvoid: List[String] = List("Content-Length", "Content-Type", "Date", "Server", "Transfer-Encoding")
   val codec = Gzip({ message: HttpMessage => message.isResponse })
 
   def mapMessage(msg: HttpMessage, contentType: ContentType, rpprefix: String): HttpMessage = msg
