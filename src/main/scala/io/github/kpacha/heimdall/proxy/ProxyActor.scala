@@ -33,16 +33,17 @@ trait ProxyActor extends Actor with ActorLogging {
     }
   }
 
-  private def getContentType(res: HttpResponse): ContentType = {
-    res.headers.filter { x =>
-      x match {
-        case `Content-Type`(ct) => true
-        case _ => false
-      }
-    } match {
-      case `Content-Type`(ct) :: _ => ct
-      case _ => ContentType(MediaTypes.`text/html`)
-    }
+  private def getContentType(res: HttpResponse): ContentType =
+    extractContentType(res.headers.filter(contentTypeHeaders))
+
+  private def extractContentType(headers: List[HttpHeader]): ContentType = headers match {
+    case `Content-Type`(ct) :: _ => ct
+    case _ => ContentType(MediaTypes.`text/html`)
+  }
+
+  private def contentTypeHeaders(header: HttpHeader): Boolean = header match {
+    case `Content-Type`(ct) => true
+    case _ => false
   }
 
   private def normalizeHeaders(msg: HttpMessage, rpprefix: String): HttpMessage =
