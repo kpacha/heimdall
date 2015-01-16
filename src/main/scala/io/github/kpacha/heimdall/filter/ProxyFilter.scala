@@ -11,7 +11,7 @@ import scala.util.{Success, Failure}
 
 import io.github.kpacha.heimdall.client.ClientReq
 import io.github.kpacha.heimdall.proxy.DecoratedProxyActor
-import io.github.kpacha.heimdall.{PreProcessedRequest, PostProcessedRequest}
+import io.github.kpacha.heimdall.{PreProcessedRequest, PostProcessedRequest, UrlMapping}
 
 class ProxyFilter extends ClientReq with DecoratedProxyActor {
   implicit val timeout: Timeout = 1.second // for the actor 'asks'
@@ -21,15 +21,10 @@ class ProxyFilter extends ClientReq with DecoratedProxyActor {
   def receive = {
     case PreProcessedRequest(uuid, originalsender, filters, or, req, resp) => {
       val analysis = analyze(req)
-      analysis.backendHosts match {
-        case Some(uri :: _) => {
-          log.info("[{}] -> {}", analysis, uri.authority)
+      analysis.urlMapping match {
+        case Some(UrlMapping((uri :: _), _, _)) => {
           request(analysis, uri.toString(), uri.authority.port) onComplete {
             case Success(res) => {
-              log.info("Response: {} - {}", res.status, res.entity match {
-                case HttpEntity.NonEmpty(contentType, _) => contentType.toString
-                case _ => ""
-              })
   	          log.info("Continue the workflow {} -> [{}]", uuid, filters)
               context.actorSelection(filters.head) !
                 PostProcessedRequest(uuid, originalsender, filters.tail, or, req, resp, processResponse(res, analysis.rpprefix))
@@ -48,16 +43,16 @@ class ProxyFilter extends ClientReq with DecoratedProxyActor {
     }
   }
 
-  private def index(mapping: Map[(String, String), List[Uri]]) = HttpResponse(
+  private def index(mapping: Map[(String, String), UrlMapping]) = HttpResponse(
     status = 404,
-    entity = HttpEntity(`text/html`, pattern.replaceAllIn(indexTemplate, replacement(mapping))))
+    entity = HttpEntity(`text/html`, pattern.replaceAllIn(indexTemplate, replacement(mapping.keySet))))
 
   private lazy val pattern = """(<!-- placeholder -->)""".r
 
   private def aggregate(s: String, p: (String, String)): String =
     "<li><a href=\"/" + p._1 + "/" + p._2 + "\">/" + p._1 + "/" + p._2 + "</a></li>" + s
   
-  private def replacement(mapping: Map[(String, String), List[Uri]]): String = mapping.keySet.foldLeft("")(aggregate)
+  private def replacement(mapping: Set[(String, String)]): String = mapping.foldLeft("")(aggregate)
   
   private lazy val indexTemplate = 
       <html lang="en">

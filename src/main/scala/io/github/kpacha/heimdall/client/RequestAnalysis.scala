@@ -1,7 +1,7 @@
 package io.github.kpacha.heimdall.client
 
 import akka.actor.{Actor, ActorLogging, ActorSystem}
-import io.github.kpacha.heimdall.Settings
+import io.github.kpacha.heimdall.{Settings, UrlMapping}
 import spray.http.{HttpRequest, Uri}
 import java.util.UUID
 
@@ -16,7 +16,7 @@ class RequestAnalysis (req: HttpRequest)(
   val prefix: Array[String] = relativePath.split('/').drop(1).take(2)
   lazy val rpprefix = "/" + prefix.mkString("/")
   lazy val requestPath = normalize(relativePath.drop(rpprefix.length))
-  lazy val backendHosts: Option[List[Uri]] = 
+  lazy val urlMapping: Option[UrlMapping] =
     if (prefix.length == 2) mapping.get((prefix(0), prefix(1)))
     else None
 

@@ -6,7 +6,7 @@ import akka.actor.SupervisorStrategy._
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import spray.http.{HttpMessage, HttpResponse}
-import io.github.kpacha.heimdall.PostProcessedRequest
+import io.github.kpacha.heimdall.{PostProcessedRequest, UrlMapping}
 import io.github.kpacha.heimdall.client.{ClientReq, RequestAnalysis}
 import io.github.kpacha.heimdall.proxy.DecoratedProxyActor
 
@@ -19,7 +19,7 @@ class ShadowProxyForkFilter extends Actor with ActorLogging {
   var child: ActorRef = _
 
   override def preStart() {
-    child = context.actorOf(Props[ShadowProxyFilter], "Shadow-proxy")
+    child = context.actorOf(Props[ShadowProxyFilter], "shadow-proxy")
   }
 
   def receive = {
@@ -52,11 +52,12 @@ class ShadowProxyFilter extends ClientReq with DecoratedProxyActor {
   def receive = {
     case PostProcessedRequest(_, _, _, _, req, _, res) => {
       val analysis = analyze(req)
-      analysis.backendHosts match {
-        case Some(_ :: shadowUris) => {
+      analysis.urlMapping match {
+        case Some(UrlMapping(_, shadowUris, _)) => {
           val responseFutures = shadowUris map (uri => request(analysis, uri.toString, uri.authority.port))
           Future.fold(responseFutures)(List(res))(aggregate(analysis.rpprefix)) map storeWith(analysis)
         }
+        case None => log.warning("A request to {} has arrived to the ShadowProxyFilter!!!", analysis.rpprefix)
       }
     }
   }
