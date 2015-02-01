@@ -1,0 +1,69 @@
+@(stats: List[spray.can.server.Stats])
+<html lang="en">
+  <head>
+    <title>Heimdall: Http Stats</title>
+    <link href="//maxcdn.bootstrapcdn.com/bootswatch/3.3.0/cosmo/bootstrap.min.css" rel="stylesheet"/>
+  </head>
+  <body>
+    <div class="jumbotron">
+        <div class="container">
+          <h1>Say hello to <i>heimdall</i>!</h1>
+          <p>The reactive edge service based on actors.</p>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-offset-1 col-md-10">
+                <h3>HttpServer Stats</h3>
+                  <table class="table table-striped">
+                    <tr><th>stats</th>
+                      @for(x <- (0 until stats.length)){
+                        <th>http-listener-@x</th>
+                      }
+                    </tr>
+                    <tr><td>uptime:</td>
+                      @stats.map{ s => 
+                        <td>@s.uptime</td>
+                      }
+                    </tr>
+                    <tr><td>totalRequests:</td>
+                      @stats.map{ s => 
+                        <td>@s.totalRequests</td>
+                      }
+                    </tr>
+                    <tr><td>openRequests:</td>
+                      @stats.map{ s => 
+                        <td>@s.openRequests</td>
+                      }
+                    </tr>
+                    <tr><td>maxOpenRequests:</td>
+                      @stats.map{ s => 
+                        <td>@s.maxOpenRequests</td>
+                      }
+                    </tr>
+                    <tr><td>totalConnections:</td>
+                      @stats.map{ s => 
+                        <td>@s.totalConnections</td>
+                      }
+                    </tr>
+                    <tr><td>openConnections:</td>
+                      @stats.map{ s => 
+                        <td>@s.openConnections</td>
+                      }
+                    </tr>
+                    <tr><td>maxOpenConnections:</td>
+                      @stats.map{ s => 
+                        <td>@s.maxOpenConnections</td>
+                      }
+                    </tr>
+                    <tr><td>requestTimeouts:</td>
+                      @stats.map{ s => 
+                        <td>@s.requestTimeouts</td>
+                      }
+                    </tr>
+                  </table>
+            </div>
+        </div>
+    </div>
+  </body>
+</html>

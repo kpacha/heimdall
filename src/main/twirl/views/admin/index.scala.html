@@ -1,0 +1,52 @@
+@(s: io.github.kpacha.heimdall.SettingsImpl)
+<html lang="en">
+  <head>
+      <title>Heimdall: Admin</title>
+    <link href="//maxcdn.bootstrapcdn.com/bootswatch/3.3.0/cosmo/bootstrap.min.css" rel="stylesheet"/>
+  </head>
+  <body>
+    <div class="jumbotron">
+        <div class="container">
+            <h1>Say hello to <i>heimdall</i>!</h1>
+            <p>The reactive edge service based on actors.</p>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-offset-1 col-md-5">
+                <h3>Defined resources:</h3>
+                <ul>
+                  <li><a href="/server-stats">/server-stats</a>: Watch the server stats</li>
+                  <li><a href="/restart-service">/restart-service</a>: Restart the Heimdall service</li>
+                </ul>
+                <h3>Defined settings:</h3>
+                <h4>Services:</h4>
+                <ul>
+                  <li>Proxy: @s.proxyHost [@s.proxyPort]</li>
+                  <li>Admin: @s.adminHost [@s.adminPort]</li>
+                </ul>
+                <h4>Default filters:</h4>
+                <ul>
+                  @s.filters.map { f: String =>
+                    <li>@f</li>
+                  }
+                </ul>
+            </div>
+            <div class="col-md-5">
+                <h3>Defined mapping:</h3>
+                <table class="table table-striped">
+                  <tr><th>prefix</th><th>sources</th><th>shadow</th><th>filters</th></tr>
+                  @s.mapping.keySet.map { p: (String, String) =>
+                    <tr>
+                      <td><a href="http://@s.proxyHost:@s.proxyPort/@p._1/@p._2">@p._1/@p._2</a></td>
+                      <td><ul>@s.mapping(p).mainPool.map {uri => <li>@uri</li> }</ul></td>
+                      <td><ul>@s.mapping(p).shadowPool.map {uri => <li>@uri</li> }</ul></td>
+                      <td><ul>@s.mapping(p).filters.map {f => <li>@f</li> }</ul></td>
+                    </tr>
+                  }
+                </ul>
+            </div>
+        </div>
+    </div>
+  </body>
+</html>
