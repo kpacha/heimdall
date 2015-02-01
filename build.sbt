@@ -1,6 +1,7 @@
 import com.typesafe.sbt.SbtNativePackager._
 import NativePackagerKeys._
 import com.typesafe.sbt.SbtAspectj._
+import twirl.sbt.TwirlPlugin._
 
 packageArchetype.java_application
 
@@ -19,6 +20,7 @@ libraryDependencies ++={
     "io.spray"            %%  "spray-caching"        % sprayV,
     "io.spray"            %%  "spray-routing"        % sprayV,
     "io.spray"            %%  "spray-json"           % "1.3.1",
+    "io.spray"            %%  "spray-httpx"          % sprayV,
     "com.typesafe.akka"   %%  "akka-actor"           % akkaV,
     "org.jsoup"           %   "jsoup"                % "1.7.3",
     "org.json4s"          %%  "json4s-native"        % "3.2.4",
@@ -35,6 +37,8 @@ libraryDependencies ++={
 }
 
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+
+Twirl.settings
 
 aspectjSettings
 
