@@ -6,12 +6,11 @@ import spray.can.Http
 import spray.util._
 import spray.http._
 import HttpHeaders.{`Content-Type`, Location}
-import MediaTypes._
 import scala.util.{Success, Failure}
 
 import io.github.kpacha.heimdall.client.ClientReq
 import io.github.kpacha.heimdall.proxy.DecoratedProxyActor
-import io.github.kpacha.heimdall.{PreProcessedRequest, PostProcessedRequest, UrlMapping}
+import io.github.kpacha.heimdall.{ErroredRequest, PreProcessedRequest, PostProcessedRequest, UrlMapping}
 
 class ProxyFilter extends ClientReq with DecoratedProxyActor {
   implicit val timeout: Timeout = 1.second // for the actor 'asks'
@@ -19,64 +18,26 @@ class ProxyFilter extends ClientReq with DecoratedProxyActor {
   import context.system
 
   def receive = {
-    case PreProcessedRequest(uuid, originalsender, filters, or, req, resp) => {
-      val analysis = analyze(req)
-      analysis.urlMapping match {
-        case Some(UrlMapping((uri :: _), _, _)) => {
-          request(analysis, uri.toString(), uri.authority.port) onComplete {
-            case Success(res) => {
-  	          log.info("Continue the workflow {} -> [{}]", uuid, filters)
-              context.actorSelection(filters.head) !
-                PostProcessedRequest(uuid, originalsender, filters.tail, or, req, resp, processResponse(res, analysis.rpprefix))
-            }
-            case Failure(error) => {
-              log.warning("Error [{}]: {}", uuid, error)
-              originalsender ! index(analysis.mapping)
-            }
+    case PreProcessedRequest(analysis, originalsender, offset, or, req, resp) => {
+      if (analysis.sourceUris.isEmpty) {
+        log.warning("Error: Undefined origin for the prefix [{}]!", analysis.rpprefix)
+        context.actorSelection("../../error-router") ! ErroredRequest(analysis, sender, 0, or)
+      } else {
+        val uri: Uri = analysis.sourceUris.head
+        request(analysis, uri.toString(), uri.authority.port) onComplete {
+          case Success(res) => {
+            val nextFilter = offset + 1
+	          log.info("[{}] Continue the workflow {} -> [{}]", offset, analysis.id,
+              analysis.filters.drop(nextFilter))
+            context.actorSelection(analysis.filters(nextFilter)) !
+              PostProcessedRequest(analysis, originalsender, nextFilter, or, req, resp, processResponse(res, analysis.rpprefix))
           }
-        }
-        case _ => {
-          log.warning("Error: Undefined origin for the prefix [{}]!", analysis.rpprefix)
-          originalsender ! index(analysis.mapping)
+          case Failure(error) => {
+            log.warning("Error [{}]: {}", analysis.id, error)
+            context.actorSelection("../../error-router") ! ErroredRequest(analysis, sender, 0, or)
+          }
         }
       }
     }
   }
-
-  private def index(mapping: Map[(String, String), UrlMapping]) = HttpResponse(
-    status = 404,
-    entity = HttpEntity(`text/html`, pattern.replaceAllIn(indexTemplate, replacement(mapping.keySet))))
-
-  private lazy val pattern = """(<!-- placeholder -->)""".r
-
-  private def aggregate(s: String, p: (String, String)): String =
-    "<li><a href=\"/" + p._1 + "/" + p._2 + "\">/" + p._1 + "/" + p._2 + "</a></li>" + s
-  
-  private def replacement(mapping: Set[(String, String)]): String = mapping.foldLeft("")(aggregate)
-  
-  private lazy val indexTemplate = 
-      <html lang="en">
-        <head>
-          <title>Heimdall: Page Not Found</title>
-          <link href="//maxcdn.bootstrapcdn.com/bootswatch/3.3.0/cosmo/bootstrap.min.css" rel="stylesheet"/>
-        </head>
-        <body>
-          <div class="jumbotron">
-              <div class="container">
-                <h1>Page Not Found!</h1>
-                <p>The server was unable to resolve the requested url.</p>
-              </div>
-          </div>
-          <div class="container-fluid">
-              <div class="row">
-                  <div class="col-md-offset-1 col-md-10">
-                      <h3>Defined resources:</h3>
-                      <ul>
-                        <!-- placeholder -->
-                      </ul>
-                  </div>
-              </div>
-          </div>
-        </body>
-      </html>.toString
 }

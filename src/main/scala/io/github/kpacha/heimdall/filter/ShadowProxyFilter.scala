@@ -6,8 +6,8 @@ import akka.actor.SupervisorStrategy._
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import spray.http.{HttpMessage, HttpResponse}
-import io.github.kpacha.heimdall.{PostProcessedRequest, UrlMapping}
-import io.github.kpacha.heimdall.client.{ClientReq, RequestAnalysis}
+import io.github.kpacha.heimdall.{RequestAnalysis, PostProcessedRequest, UrlMapping}
+import io.github.kpacha.heimdall.client.ClientReq
 import io.github.kpacha.heimdall.proxy.DecoratedProxyActor
 
 class ShadowProxyForkFilter extends Actor with ActorLogging {
@@ -23,10 +23,11 @@ class ShadowProxyForkFilter extends Actor with ActorLogging {
   }
 
   def receive = {
-    case PostProcessedRequest(uuid, originalsender, filters, or, req, resp, res) => {
-      log.info("Continue the workflow {} -> [{}]", uuid, filters)
-      val ctx = PostProcessedRequest(uuid, originalsender, filters.tail, or, req, resp, res)
-      context.actorSelection(filters.head) ! ctx
+    case PostProcessedRequest(analysis, originalsender, offset, or, req, resp, res) => {
+      val nextFilter = offset + 1
+      log.info("[{}] Continue the workflow {} -> [{}]", offset, analysis.id, analysis.filters.drop(nextFilter))
+      val ctx = PostProcessedRequest(analysis, originalsender, nextFilter, or, req, resp, res)
+      context.actorSelection(analysis.filters(nextFilter)) ! ctx
       child ! ctx
     }
   }
@@ -50,14 +51,13 @@ class ShadowProxyFilter extends ClientReq with DecoratedProxyActor {
   private def persist[T](entry: T) = log.debug("ShadowResponse: {}", entry.toString)
 
   def receive = {
-    case PostProcessedRequest(_, _, _, _, req, _, res) => {
-      val analysis = analyze(req)
-      analysis.urlMapping match {
-        case Some(UrlMapping(_, shadowUris, _)) => {
-          val responseFutures = shadowUris map (uri => request(analysis, uri.toString, uri.authority.port))
-          Future.fold(responseFutures)(List(res))(aggregate(analysis.rpprefix)) map storeWith(analysis)
-        }
-        case None => log.warning("A request to {} has arrived to the ShadowProxyFilter!!!", analysis.rpprefix)
+    case PostProcessedRequest(analysis, _, _, _, req, _, res) => {
+      if(analysis.shadowUris.isEmpty)
+        log.warning("A request to {} has arrived to the ShadowProxyFilter!!!", analysis.rpprefix)
+      else {
+        val responseFutures = analysis.shadowUris map (uri =>
+          request(analysis, uri.toString, uri.authority.port))
+        Future.fold(responseFutures)(List(res))(aggregate(analysis.rpprefix)) map storeWith(analysis)
       }
     }
   }

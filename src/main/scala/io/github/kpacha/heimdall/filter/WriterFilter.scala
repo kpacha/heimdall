@@ -7,10 +7,13 @@ class WriterFilter extends Actor with ActorLogging {
   import context.system
 
   def receive = {
-  	case PostProcessedRequest(uuid, originalsender, filters, _, _, _, res) => {
-  	  log.info("Ending the workflow {} -> [{}] responding to {}", uuid, filters, originalsender)
-  	  originalsender ! res
-      if(!filters.isEmpty) log.warning("The writer filter should be the last of your chain!")
+    case PostProcessedRequest(analysis, originalsender, offset, _, _, _, res) => {
+      val nextFilter = offset + 1
+      log.info("[{}] Ending the workflow {} -> [{}] responding to {}",
+        offset, analysis.id, analysis.filters.drop(nextFilter), originalsender)
+      originalsender ! res
+      if(nextFilter != analysis.filters.length)
+        log.warning("The writer filter should be the last of your chain!")
     }
   }
 }

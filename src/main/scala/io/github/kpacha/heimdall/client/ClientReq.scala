@@ -8,11 +8,10 @@ import akka.actor.ActorSystem
 import spray.http._
 import akka.io.IO
 import spray.can.Http
+import io.github.kpacha.heimdall.RequestAnalysis
 
 trait ClientReq {
   private implicit val timeout: Timeout = 2.seconds
-
-  def analyze(req: HttpRequest)(implicit system: ActorSystem): RequestAnalysis = new RequestAnalysis(req)
 
   def request(
     analysis: RequestAnalysis, host: String, port: Int = 80)(

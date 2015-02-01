@@ -57,11 +57,13 @@ class HeimdallServiceHandler extends ServiceHandler {
   var proxyRouter: ActorRef = _
   var shadowProxyRouter: ActorRef = _
   var witerRouter: ActorRef = _
+  var errorRouter: ActorRef = _
 
   override def preStart() {
     child = createChild(FromConfig.props(Props[HeimdallService]), "heimdall-router")
     proxyRouter = createChild(FromConfig.props(Props[ProxyFilter]), "proxy-router")
     shadowProxyRouter = createChild(FromConfig.props(Props[ShadowProxyForkFilter]), "shadow-proxy-router")
     witerRouter = createChild(FromConfig.props(Props[WriterFilter]), "writer-router")
+    errorRouter = createChild(FromConfig.props(Props[ErrorFilter]), "error-router")
   }
 }

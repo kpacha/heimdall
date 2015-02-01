@@ -29,28 +29,25 @@ class SettingsImpl(val config: Config) extends Extension with ConfigParser {
   val adminPort: Int = getConfigInt("admin.port")
   val proxyHost: String = getConfigString("proxy.host")
   val proxyPort: Int = getConfigInt("proxy.port")
+  val filters: List[String] = getConfigStringList("lifecycle")
+  val mapping: Map[(String, String), UrlMapping] =
+    (getConfigObjectProperties("mapping").sorted(Ordering[String].reverse) map urlMapping).toMap
 
-  lazy val filters: List[String] = getConfigStringList("lifecycle")
-
-  private def getMapping(key: String): String = getConfigString("mapping." + key)
-
-  private def makeUri(host: String): Uri = (host split ":").toList match {
-    case List(h, p) => Uri(h).withPort(p.toInt)
-    case List(h) => Uri(h)
+  private def formatHost(host: String): List[String] =
+    if (host contains ":") (host split ":").toList
+    else List(host)
+  private def makeUri(host: String): Uri = formatHost(host) match {
+    case h :: p :: Nil => Uri(h).withPort(p.toInt)
+    case h :: Nil => Uri(h).withPort(80)
     case _ => throw new Exception(s"Bad host $host")
   }
-
   private def makeUris(key: String): List[Uri] = getConfigStringList("mapping." + key) map makeUri
-
   private def mappigFilters(key: String): List[String] =
     getConfigStringList("mapping." + key + ".lifecycle", filters)
-
+  private def getMapping(key: String): String = getConfigString("mapping." + key)
   private def urlMapping(key: String): ((String, String), UrlMapping) =
     ((getMapping(key + ".prefix"), getMapping(key + ".version")),
       UrlMapping(makeUris(key + ".source"), makeUris(key + ".shadow"), mappigFilters(key)))
-
-  lazy val mapping: Map[(String, String), UrlMapping] =
-    (getConfigObjectProperties("mapping").sorted(Ordering[String].reverse) map urlMapping).toMap
 }
 
 object Settings extends ExtensionId[SettingsImpl] with ExtensionIdProvider {
